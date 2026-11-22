@@ -1,4 +1,4 @@
-import { dayKey, rangeStart } from "./days";
+import { dayKey, rangeStart, type CalendarRange } from "./days";
 import { orderStudents, fullName } from "./students";
 import type { Behavior, Class, Data, Id, Student } from "./types";
 
@@ -12,19 +12,27 @@ export type ReportRow = {
 export type Report = { columns: ReportColumn[]; rows: ReportRow[] };
 
 /**
- * One Class's table for everything since `since`: a row per Student, a column per
+ * One Class's table for a preset start time or an inclusive calendar range: a row per Student, a column per
  * Behavior. Behaviors no longer on the Class's Menu still get a column when they have
  * Taps in range, and Former Students still get a row when they have any history.
  */
-export function buildReport(cls: Class, data: Data, since: number): Report {
+export function buildReport(
+  cls: Class,
+  data: Data,
+  range: number | CalendarRange,
+): Report {
   const studentIds = new Set(cls.students.map((s) => s.id));
+  const includesDay = (day: string) =>
+    typeof range === "number"
+      ? new Date(day + "T23:59:59").getTime() >= range
+      : day >= range.start && day <= range.end;
   const taps = data.taps.filter(
-    (t) => studentIds.has(t.student) && t.at >= since,
+    (t) =>
+      studentIds.has(t.student) &&
+      (typeof range === "number" ? t.at >= range : includesDay(dayKey(t.at))),
   );
-  const sinceDay = new Date(since);
   const absences = data.absences.filter(
-    (a) =>
-      studentIds.has(a.student) && new Date(a.day + "T23:59:59") >= sinceDay,
+    (a) => studentIds.has(a.student) && includesDay(a.day),
   );
 
   const menu = data.menus.find((m) => m.id === cls.menuId);

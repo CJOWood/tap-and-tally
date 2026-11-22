@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readCalendarRange } from "./days";
 import { emptyData, backupDue } from "./backup";
 import { buildReport, buildWeek, everythingCsv, reportCsv } from "./reports";
 import { withoutLatest, countOn } from "./taps";
@@ -74,6 +75,43 @@ describe("buildReport", () => {
       { name: "Ana Lopez", left: false, counts: [2, 0], absent: 1 },
       { name: "Ben Ng", left: true, counts: [0, 1], absent: 0 },
     ]);
+  });
+
+  it("includes both local calendar boundaries in the report and spreadsheet", () => {
+    const { cls, data } = setup();
+    data.taps.push(
+      { student: "a", behavior: "p", at: at("2026-10-13", 0) - 1 },
+      { student: "a", behavior: "p", at: at("2026-10-13", 0) },
+      { student: "a", behavior: "p", at: at("2026-10-14", 0) - 1 },
+      { student: "a", behavior: "p", at: at("2026-10-14", 0) },
+    );
+    const report = buildReport(cls, data, {
+      start: "2026-10-13",
+      end: "2026-10-13",
+    });
+    expect(report.rows).toEqual([
+      { name: "Ana Lopez", left: false, counts: [2], absent: 1 },
+    ]);
+    expect(reportCsv(report)).toBe(
+      "Student,Participation,Days absent\nAna Lopez,2,1\n",
+    );
+    const future = buildReport(cls, data, {
+      start: "2099-01-01",
+      end: "2099-12-31",
+    });
+    expect(future.rows[0]).toMatchObject({ counts: [0], absent: 0 });
+  });
+
+  it("restores only valid, ordered date-only URL values", () => {
+    const read = (query: string) =>
+      readCalendarRange(new URLSearchParams(query));
+    expect(read("start=2024-02-29&end=2026-10-13")).toEqual({
+      start: "2024-02-29",
+      end: "2026-10-13",
+    });
+    expect(read("start=2026-02-29&end=2026-10-13")).toBeNull();
+    expect(read("start=2026-10-14&end=2026-10-13")).toBeNull();
+    expect(read("start=2026-10-13")).toBeNull();
   });
 
   it("writes a spreadsheet with a Days absent column", () => {

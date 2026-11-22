@@ -1,21 +1,43 @@
 <!-- One table per Class and date range: students down the side, Behaviors across the top. -->
 <script lang="ts">
-  import { RANGES, dayKey, rangeStart, type Range } from "$lib/domain/days";
+  import { page } from "$app/state";
+  import { replaceState } from "$app/navigation";
+  import { RANGES, dayKey, rangeStart, readCalendarRange, type CalendarRange, type Range } from "$lib/domain/days";
   import { buildReport, reportCsv } from "$lib/domain/reports";
+  import ReportDateRange from "$lib/components/ReportDateRange.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { store } from "$lib/store.svelte";
 
   let classId = $state(store.data.classes[0]?.id ?? "");
   let range = $state<Range>("week");
   const cls = $derived(store.findClass(classId));
-  const report = $derived(cls ? buildReport(cls, store.data, rangeStart(range)) : null);
+  const custom = $derived(readCalendarRange(page.url.searchParams));
+  const report = $derived(cls ? buildReport(cls, store.data, custom ?? rangeStart(range)) : null);
+
+  function setCustom(selection: CalendarRange | null) {
+    const url = new URL(page.url);
+    if (selection) {
+      url.searchParams.set("start", selection.start);
+      url.searchParams.set("end", selection.end);
+    } else {
+      url.searchParams.delete("start");
+      url.searchParams.delete("end");
+    }
+    replaceState(url, page.state);
+  }
+
+  function selectPreset(value: Range) {
+    range = value;
+    setCustom(null);
+  }
 
   function download() {
     if (!cls || !report) return;
     const file = new Blob([reportCsv(report)], { type: "text/csv" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(file);
-    link.download = `${cls.name} - ${RANGES.find((r) => r.value === range)?.label} - ${dayKey()}.csv`;
+    const period = custom ? `${custom.start} to ${custom.end}` : RANGES.find((r) => r.value === range)?.label;
+    link.download = `${cls.name} - ${period} - ${dayKey()}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
   }
@@ -38,9 +60,10 @@
       </label>
       <div class="ranges" role="radiogroup" aria-label="Date range">
         {#each RANGES as r}
-          <button role="radio" aria-checked={range === r.value} class:on={range === r.value} onclick={() => (range = r.value)}>{r.label}</button>
+          <button role="radio" aria-checked={!custom && range === r.value} class:on={!custom && range === r.value} onclick={() => selectPreset(r.value)}>{r.label}</button>
         {/each}
       </div>
+      <ReportDateRange applied={custom} onselect={setCustom} />
     </div>
 
     {#if report}
