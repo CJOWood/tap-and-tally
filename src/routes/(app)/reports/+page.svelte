@@ -1,46 +1,55 @@
 <!-- One table per Class and date range: students down the side, Behaviors across the top. -->
 <script lang="ts">
-  import { page } from "$app/state";
-  import { replaceState } from "$app/navigation";
-  import { RANGES, dayKey, rangeStart, readCalendarRange, type CalendarRange, type Range } from "$lib/domain/days";
-  import { buildReport, reportCsv } from "$lib/domain/reports";
+  import { navigating, page } from "$app/state";
+  import { goto } from "$app/navigation";
+  import {
+    RANGES,
+    dayKey,
+    rangeStart,
+    readCalendarRange,
+    type CalendarRange,
+    type Range,
+  } from "$lib/domain/days";
+  import { buildReport, reportCsv, reportDates } from "$lib/domain/reports";
   import ReportDateRange from "$lib/components/ReportDateRange.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { store } from "$lib/store.svelte";
 
-  let classId = $state(store.data.classes[0]?.id ?? "");
   let pendingRange = $state(false);
   let range = $state<Range>("week");
-  const cls = $derived(store.findClass(classId));
-  const studentIds = $derived(new Set(cls?.students.map((student) => student.id)));
-  const availableDates = $derived([...new Set([
-    ...store.data.taps.filter((tap) => studentIds.has(tap.student)).map((tap) => dayKey(tap.at)),
-    ...store.data.absences.filter((absence) => studentIds.has(absence.student)).map((absence) => absence.day),
-  ])].sort());
-  let selectedRange = $state<CalendarRange | null | undefined>(undefined);
-  const custom = $derived(selectedRange === undefined ? readCalendarRange(page.url.searchParams) : selectedRange);
-  const report = $derived(cls ? buildReport(cls, store.data, custom ?? rangeStart(range)) : null);
+  const requestedClass = $derived(page.url.searchParams.get("class"));
+  const cls = $derived(
+    requestedClass === null ? store.data.classes[0] : store.findClass(requestedClass),
+  );
+  const availableDates = $derived(cls ? reportDates(cls, store.data) : []);
+  const custom = $derived(readCalendarRange(page.url.searchParams));
+  const report = $derived(
+    cls ? buildReport(cls, store.data, custom ?? rangeStart(range)) : null,
+  );
+  const downloadDisabled = $derived(pendingRange || navigating.to !== null);
 
-  function setCustom(selection: CalendarRange | null) {
-    const url = new URL(window.location.href);
-    if (selection) {
-      url.searchParams.set("start", selection.start);
-      url.searchParams.set("end", selection.end);
+  function setFilters(classId: string, dates: CalendarRange | null) {
+    const url = new URL(page.url);
+    url.searchParams.set("class", classId);
+    if (dates) {
+      url.searchParams.set("start", dates.start);
+      url.searchParams.set("end", dates.end);
     } else {
       url.searchParams.delete("start");
       url.searchParams.delete("end");
     }
-    replaceState(url, page.state);
-    selectedRange = selection;
+    if (url.href !== page.url.href) {
+      void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+    }
   }
 
-  function selectPreset(value: Range) {
+  function selectPreset(classId: string, value: Range) {
     range = value;
-    setCustom(null);
+    setFilters(classId, null);
   }
 
   function download() {
-    if (!cls || !report || pendingRange) return;
+    if (!cls || !report || downloadDisabled) return;
     const file = new Blob([reportCsv(report)], { type: "text/csv" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(file);
@@ -62,20 +71,35 @@
     <div class="row">
       <label class="grow">
         Class
-        <select bind:value={classId} onchange={() => (pendingRange = false)}>
+        <select
+          value={cls?.id ?? ""}
+          onchange={(event) => setFilters(event.currentTarget.value, custom)}
+        >
+          {#if !cls}<option value="" disabled>Choose a class</option>{/if}
           {#each store.data.classes as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
         </select>
       </label>
-      <div class="ranges" role="radiogroup" aria-label="Date range">
-        {#each RANGES as r}
-          <button role="radio" aria-checked={!custom && range === r.value} class:on={!custom && range === r.value} onclick={() => selectPreset(r.value)}>{r.label}</button>
-        {/each}
-      </div>
-      {#key classId}
-        <ReportDateRange applied={custom} {availableDates} onselect={setCustom} ondraftchange={(pending) => (pendingRange = pending)} />
-      {/key}
+      {#if cls}
+        {@const classId = cls.id}
+        <div class="ranges" role="radiogroup" aria-label="Date range">
+          {#each RANGES as r}
+            <button role="radio" aria-checked={!custom && range === r.value} class:on={!custom && range === r.value} onclick={() => selectPreset(classId, r.value)}>{r.label}</button>
+          {/each}
+        </div>
+        {#key classId}
+          <ReportDateRange
+            applied={custom}
+            {availableDates}
+            onselect={(dates) => setFilters(classId, dates)}
+            ondraftchange={(pending) => (pendingRange = pending)}
+          />
+        {/key}
+      {/if}
     </div>
 
+    {#if !cls}
+      <p class="muted" role="status">This report’s class is unavailable in this browser. Choose a class to view a report.</p>
+    {/if}
     {#if report}
       {#if custom && !report.hasActivity}
         <p class="muted" role="status">No taps or absences recorded in this date range.</p>
@@ -106,7 +130,7 @@
       </div>
       <div class="row">
         <span class="spacer"></span>
-        <button class="btn btn-primary" onclick={download} disabled={pendingRange}><Icon name="download" size={16} /> Download spreadsheet</button>
+        <button class="btn btn-primary" onclick={download} disabled={downloadDisabled}><Icon name="download" size={16} /> Download spreadsheet</button>
       </div>
     {/if}
   {/if}

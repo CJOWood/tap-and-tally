@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { readCalendarRange } from "./days";
 import { emptyData, backupDue } from "./backup";
-import { buildReport, buildWeek, everythingCsv, reportCsv } from "./reports";
+import {
+  buildReport,
+  buildWeek,
+  everythingCsv,
+  reportCsv,
+  reportDates,
+} from "./reports";
 import { withoutLatest, countOn } from "./taps";
 import type { Class, Data } from "./types";
 
@@ -62,6 +68,27 @@ function setup(): { cls: Class; data: Data } {
   };
   return { cls, data };
 }
+
+describe("reportDates", () => {
+  it("sorts and deduplicates dates with taps or absences for the selected class", () => {
+    const { cls, data } = setup();
+    data.taps.push({ student: "other", behavior: "p", at: at("2026-08-01") });
+    data.absences.push(
+      { student: "other", day: "2026-08-02" },
+      { student: "b", day: "2026-10-14" },
+      { student: "b", day: "2026-10-15" },
+    );
+
+    expect(reportDates(cls, data)).toEqual([
+      "2026-09-01",
+      "2026-10-12",
+      "2026-10-13",
+      "2026-10-14",
+      "2026-10-15",
+    ]);
+    expect(reportDates({ ...cls, students: [] }, data)).toEqual([]);
+  });
+});
 
 describe("buildReport", () => {
   it("counts taps since the start, keeps removed behaviors and students who left", () => {

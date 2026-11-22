@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { onDestroy, tick } from "svelte";
   import { dayKey, type CalendarRange } from "$lib/domain/days";
 
   let {
@@ -44,6 +44,10 @@
     ),
   );
 
+  onDestroy(() => {
+    if (draft) ondraftchange(false);
+  });
+
   function calendarDate(year: number, month: number, day: number) {
     const date = new Date(2000, 0, 1, 12);
     date.setFullYear(year, month, day);
@@ -58,12 +62,17 @@
     if (!next) return;
     focused = new Date(next + "T12:00:00");
     await tick();
-    popup.querySelector<HTMLButtonElement>('[data-day][tabindex="0"]')?.focus();
+    if (popup?.matches(":popover-open")) {
+      popup.querySelector<HTMLButtonElement>('[data-day][tabindex="0"]')?.focus();
+    }
   }
 
-  function onToggle(event: ToggleEvent) {
+  function resetDraft() {
     draft = "";
     ondraftchange(false);
+  }
+
+  function focusOnOpen(event: ToggleEvent) {
     if (event.newState !== "open") return;
     const start =
       applied && available.has(applied.start)
@@ -73,8 +82,6 @@
   }
 
   function closeCalendar() {
-    draft = "";
-    ondraftchange(false);
     popup.hidePopover();
     trigger.focus();
   }
@@ -152,7 +159,8 @@
     role="dialog"
     aria-label="Custom date range"
     bind:this={popup}
-    onbeforetoggle={onToggle}
+    onbeforetoggle={resetDraft}
+    ontoggle={focusOnOpen}
   >
     <div class="row calendar-header">
       <button

@@ -15,6 +15,21 @@ export type Report = {
   hasActivity: boolean;
 };
 
+function classActivityFilter(cls: Class) {
+  const studentIds = new Set(cls.students.map((student) => student.id));
+  return (activity: { student: Id }) => studentIds.has(activity.student);
+}
+
+/** The local calendar dates with a Tap or Absence for this Class. */
+export function reportDates(cls: Class, data: Data): string[] {
+  const inClass = classActivityFilter(cls);
+  const dates = new Set([
+    ...data.taps.filter(inClass).map((tap) => dayKey(tap.at)),
+    ...data.absences.filter(inClass).map((absence) => absence.day),
+  ]);
+  return [...dates].sort();
+}
+
 /**
  * One Class's table for a preset start time or an inclusive calendar range: a row per Student, a column per
  * Behavior. Behaviors no longer on the Class's Menu still get a column when they have
@@ -25,18 +40,18 @@ export function buildReport(
   data: Data,
   range: number | CalendarRange,
 ): Report {
-  const studentIds = new Set(cls.students.map((s) => s.id));
+  const inClass = classActivityFilter(cls);
   const includesDay = (day: string) =>
     typeof range === "number"
       ? new Date(day + "T23:59:59").getTime() >= range
       : day >= range.start && day <= range.end;
   const taps = data.taps.filter(
     (t) =>
-      studentIds.has(t.student) &&
+      inClass(t) &&
       (typeof range === "number" ? t.at >= range : includesDay(dayKey(t.at))),
   );
   const absences = data.absences.filter(
-    (a) => studentIds.has(a.student) && includesDay(a.day),
+    (a) => inClass(a) && includesDay(a.day),
   );
 
   const menu = data.menus.find((m) => m.id === cls.menuId);
