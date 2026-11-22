@@ -12,6 +12,11 @@
   let pendingRange = $state(false);
   let range = $state<Range>("week");
   const cls = $derived(store.findClass(classId));
+  const studentIds = $derived(new Set(cls?.students.map((student) => student.id)));
+  const availableDates = $derived([...new Set([
+    ...store.data.taps.filter((tap) => studentIds.has(tap.student)).map((tap) => dayKey(tap.at)),
+    ...store.data.absences.filter((absence) => studentIds.has(absence.student)).map((absence) => absence.day),
+  ])].sort());
   let selectedRange = $state<CalendarRange | null | undefined>(undefined);
   const custom = $derived(selectedRange === undefined ? readCalendarRange(page.url.searchParams) : selectedRange);
   const report = $derived(cls ? buildReport(cls, store.data, custom ?? rangeStart(range)) : null);
@@ -57,7 +62,7 @@
     <div class="row">
       <label class="grow">
         Class
-        <select bind:value={classId}>
+        <select bind:value={classId} onchange={() => (pendingRange = false)}>
           {#each store.data.classes as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
         </select>
       </label>
@@ -66,7 +71,9 @@
           <button role="radio" aria-checked={!custom && range === r.value} class:on={!custom && range === r.value} onclick={() => selectPreset(r.value)}>{r.label}</button>
         {/each}
       </div>
-      <ReportDateRange applied={custom} onselect={setCustom} ondraftchange={(pending) => (pendingRange = pending)} />
+      {#key classId}
+        <ReportDateRange applied={custom} {availableDates} onselect={setCustom} ondraftchange={(pending) => (pendingRange = pending)} />
+      {/key}
     </div>
 
     {#if report}

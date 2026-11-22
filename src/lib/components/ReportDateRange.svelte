@@ -4,10 +4,12 @@
 
   let {
     applied,
+    availableDates,
     onselect,
     ondraftchange,
   }: {
     applied: CalendarRange | null;
+    availableDates: string[];
     onselect: (range: CalendarRange) => void;
     ondraftchange: (pending: boolean) => void;
   } = $props();
@@ -17,12 +19,22 @@
     new Date(2024, month, 1).toLocaleDateString(undefined, { month: "long" }),
   );
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const available = $derived(new Set(availableDates));
+  const years = $derived([
+    ...new Set(availableDates.map((day) => Number(day.slice(0, 4)))),
+  ]);
+  const availableMonths = $derived([
+    ...new Set(availableDates.map((day) => day.slice(0, 7))),
+  ]);
   let popup: HTMLElement;
   let trigger: HTMLButtonElement;
   let draft = $state("");
   let focused = $state(new Date());
   const year = $derived(focused.getFullYear());
   const month = $derived(focused.getMonth());
+  const monthIndex = $derived(
+    availableMonths.indexOf(dayKey(focused).slice(0, 7)),
+  );
   const first = $derived(calendarDate(year, month, 1));
   const offset = $derived((first.getDay() + 6) % 7);
   const days = $derived(
@@ -38,9 +50,13 @@
     return date;
   }
 
-  async function focusDay(date: Date) {
-    if (date.getFullYear() < 1 || date.getFullYear() > 9999) return;
-    focused = date;
+  async function focusDay(date: Date, backwards = false) {
+    const key = dayKey(date);
+    const next = backwards
+      ? (availableDates.findLast((day) => day <= key) ?? availableDates[0])
+      : (availableDates.find((day) => day >= key) ?? availableDates.at(-1));
+    if (!next) return;
+    focused = new Date(next + "T12:00:00");
     await tick();
     popup.querySelector<HTMLButtonElement>('[data-day][tabindex="0"]')?.focus();
   }
@@ -49,16 +65,23 @@
     draft = "";
     ondraftchange(false);
     if (event.newState !== "open") return;
-    void focusDay(applied ? new Date(applied.start + "T12:00:00") : new Date());
+    const start =
+      applied && available.has(applied.start)
+        ? applied.start
+        : availableDates.at(-1);
+    if (start) void focusDay(new Date(start + "T12:00:00"));
   }
 
   function closeCalendar() {
+    draft = "";
+    ondraftchange(false);
     popup.hidePopover();
     trigger.focus();
   }
 
   function pick(date: Date) {
     const key = dayKey(date);
+    if (!available.has(key)) return;
     focused = date;
     if (!draft) {
       draft = key;
@@ -71,12 +94,17 @@
   }
 
   function changeMonth(targetYear: number, targetMonth: number) {
-    const last = calendarDate(targetYear, targetMonth + 1, 0).getDate();
-    return calendarDate(
-      targetYear,
-      targetMonth,
-      Math.min(focused.getDate(), last),
-    );
+    const prefix = dayKey(calendarDate(targetYear, targetMonth, 1)).slice(0, 7);
+    const next =
+      availableDates.find((day) => day.startsWith(prefix)) ??
+      availableDates.find((day) => Number(day.slice(0, 4)) === targetYear);
+    if (next) focused = new Date(next + "T12:00:00");
+  }
+
+  function stepMonth(step: number) {
+    const next = availableMonths[monthIndex + step];
+    if (next)
+      changeMonth(Number(next.slice(0, 4)), Number(next.slice(5, 7)) - 1);
   }
 
   function navigate(event: KeyboardEvent, date: Date) {
@@ -91,13 +119,15 @@
     if (event.key === "PageUp" || event.key === "PageDown") {
       event.preventDefault();
       const step = event.key === "PageUp" ? -1 : 1;
-      void focusDay(
-        changeMonth(year, month + step * (event.shiftKey ? 12 : 1)),
-      );
+      if (event.shiftKey)
+        changeMonth(years[years.indexOf(year) + step] ?? year, month);
+      else stepMonth(step);
+      void focusDay(focused);
     } else if (Object.hasOwn(offsets, event.key)) {
       event.preventDefault();
       void focusDay(
         calendarDate(year, month, date.getDate() + offsets[event.key]),
+        offsets[event.key] < 0,
       );
     }
   }
@@ -110,6 +140,7 @@
     type="button"
     bind:this={trigger}
     popovertarget={id}
+    disabled={availableDates.length === 0}
   >
     {applied ? `${applied.start} to ${applied.end}` : "Custom"}
   </button>
@@ -121,60 +152,65 @@
     role="dialog"
     aria-label="Custom date range"
     bind:this={popup}
-    ontoggle={onToggle}
+    onbeforetoggle={onToggle}
   >
     <div class="row calendar-header">
       <button
+        class="btn btn-quiet"
         type="button"
         aria-label="Previous month"
-        disabled={year === 1 && month === 0}
-        onclick={() => (focused = changeMonth(year, month - 1))}>‹</button
+        disabled={monthIndex <= 0}
+        onclick={() => stepMonth(-1)}
       >
+        ‹
+      </button>
       <select
         aria-label="Month"
         value={month}
         onchange={(event) =>
-          (focused = changeMonth(year, Number(event.currentTarget.value)))}
+          changeMonth(year, Number(event.currentTarget.value))}
       >
-        {#each months as label, index}<option value={index}>{label}</option
-          >{/each}
+        {#each months as label, index}<option
+            value={index}
+            disabled={!availableMonths.includes(
+              `${year.toString().padStart(4, "0")}-${String(index + 1).padStart(2, "0")}`,
+            )}
+          >
+            {label}
+          </option>{/each}
       </select>
-      <input
+      <select
         aria-label="Year"
-        type="number"
-        min="1"
-        max="9999"
         value={year}
-        onchange={(event) => {
-          const input = event.currentTarget;
-          if (input.value && input.validity.valid)
-            focused = changeMonth(input.valueAsNumber, month);
-          else input.value = String(year);
-        }}
-      />
+        onchange={(event) =>
+          changeMonth(Number(event.currentTarget.value), month)}
+      >
+        {#each years as value}<option {value}>{value}</option>{/each}
+      </select>
       <button
+        class="btn btn-quiet"
         type="button"
         aria-label="Next month"
-        disabled={year === 9999 && month === 11}
-        onclick={() => (focused = changeMonth(year, month + 1))}>›</button
+        disabled={monthIndex >= availableMonths.length - 1}
+        onclick={() => stepMonth(1)}
       >
-      <button type="button" aria-label="Close calendar" onclick={closeCalendar}
-        >×</button
-      >
+        ›
+      </button>
     </div>
 
     <p class="small muted" aria-live="polite">
       {draft ? "Choose the other date." : "Choose the first date."}
     </p>
     <div class="days" role="group" aria-label={months[month] + " " + year}>
-      {#each weekdays as day}<span class="small muted" aria-hidden="true"
-          >{day}</span
-        >{/each}
+      {#each weekdays as day}<span class="small muted" aria-hidden="true">
+          {day}
+        </span>{/each}
       {#each days as date (dayKey(date))}
         {@const key = dayKey(date)}
         <button
           type="button"
           data-day
+          disabled={!available.has(key)}
           tabindex={key === dayKey(focused) ? 0 : -1}
           style:grid-column-start={date.getDate() === 1
             ? offset + 1
@@ -207,40 +243,68 @@
     width: min(22rem, calc(100vw - 1rem));
     max-height: calc(100dvh - 1rem);
     overflow: auto;
-    color: inherit;
+    color: var(--text);
+    padding: 1rem;
+    border-color: var(--border-strong);
   }
 
   .calendar-header {
     flex-wrap: nowrap;
-    gap: 0.3rem;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
   }
 
   .calendar-header select {
     min-width: 0;
     flex: 1;
+    padding: 0.5rem;
+    background: var(--surface-sunk);
   }
 
-  .calendar-header input {
-    width: 5rem;
+  .calendar-header button {
+    flex: 0 0 2rem;
+    padding: 0;
+    font-size: 1.4rem;
+  }
+
+  .calendar-header select[aria-label="Year"] {
+    flex: 0 0 5.5rem;
   }
 
   .days {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 0.15rem;
+    gap: 0.2rem;
     text-align: center;
   }
 
-  .days button,
-  .calendar-header button {
-    min-height: 2rem;
-    padding: 0.15rem;
-    border: 1px solid var(--border);
-    border-radius: 0.35rem;
-    background: var(--surface);
+  .days > span {
+    padding-bottom: 0.4rem;
+    font-weight: 700;
   }
 
-  .days button[aria-pressed="true"] {
+  .days button {
+    min-height: 2.4rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .days button:hover:enabled {
+    background: var(--accent-wash);
+    color: var(--accent-deep);
+  }
+
+  .days button:disabled {
+    color: var(--faint);
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .days button[aria-pressed="true"]:enabled {
     background: var(--accent);
     color: #fffaf0;
   }
