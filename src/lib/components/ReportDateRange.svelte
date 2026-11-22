@@ -5,9 +5,11 @@
   let {
     applied,
     onselect,
+    ondraftchange,
   }: {
     applied: CalendarRange | null;
     onselect: (range: CalendarRange) => void;
+    ondraftchange: (pending: boolean) => void;
   } = $props();
 
   const id = $props.id();
@@ -44,8 +46,9 @@
   }
 
   function onToggle(event: ToggleEvent) {
-    if (event.newState !== "open") return;
     draft = "";
+    ondraftchange(false);
+    if (event.newState !== "open") return;
     void focusDay(applied ? new Date(applied.start + "T12:00:00") : new Date());
   }
 
@@ -59,6 +62,7 @@
     focused = date;
     if (!draft) {
       draft = key;
+      ondraftchange(true);
       return;
     }
     const [start, end] = [draft, key].sort();

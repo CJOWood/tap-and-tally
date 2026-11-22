@@ -9,13 +9,15 @@
   import { store } from "$lib/store.svelte";
 
   let classId = $state(store.data.classes[0]?.id ?? "");
+  let pendingRange = $state(false);
   let range = $state<Range>("week");
   const cls = $derived(store.findClass(classId));
-  const custom = $derived(readCalendarRange(page.url.searchParams));
+  let selectedRange = $state<CalendarRange | null | undefined>(undefined);
+  const custom = $derived(selectedRange === undefined ? readCalendarRange(page.url.searchParams) : selectedRange);
   const report = $derived(cls ? buildReport(cls, store.data, custom ?? rangeStart(range)) : null);
 
   function setCustom(selection: CalendarRange | null) {
-    const url = new URL(page.url);
+    const url = new URL(window.location.href);
     if (selection) {
       url.searchParams.set("start", selection.start);
       url.searchParams.set("end", selection.end);
@@ -24,6 +26,7 @@
       url.searchParams.delete("end");
     }
     replaceState(url, page.state);
+    selectedRange = selection;
   }
 
   function selectPreset(value: Range) {
@@ -32,7 +35,7 @@
   }
 
   function download() {
-    if (!cls || !report) return;
+    if (!cls || !report || pendingRange) return;
     const file = new Blob([reportCsv(report)], { type: "text/csv" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(file);
@@ -63,10 +66,13 @@
           <button role="radio" aria-checked={!custom && range === r.value} class:on={!custom && range === r.value} onclick={() => selectPreset(r.value)}>{r.label}</button>
         {/each}
       </div>
-      <ReportDateRange applied={custom} onselect={setCustom} />
+      <ReportDateRange applied={custom} onselect={setCustom} ondraftchange={(pending) => (pendingRange = pending)} />
     </div>
 
     {#if report}
+      {#if custom && !report.hasActivity}
+        <p class="muted" role="status">No taps or absences recorded in this date range.</p>
+      {/if}
       <div class="card table-wrap">
         <table>
           <thead>
@@ -93,7 +99,7 @@
       </div>
       <div class="row">
         <span class="spacer"></span>
-        <button class="btn btn-primary" onclick={download}><Icon name="download" size={16} /> Download spreadsheet</button>
+        <button class="btn btn-primary" onclick={download} disabled={pendingRange}><Icon name="download" size={16} /> Download spreadsheet</button>
       </div>
     {/if}
   {/if}

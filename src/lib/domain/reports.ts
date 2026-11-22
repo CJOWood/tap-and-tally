@@ -9,7 +9,11 @@ export type ReportRow = {
   counts: number[];
   absent: number;
 };
-export type Report = { columns: ReportColumn[]; rows: ReportRow[] };
+export type Report = {
+  columns: ReportColumn[];
+  rows: ReportRow[];
+  hasActivity: boolean;
+};
 
 /**
  * One Class's table for a preset start time or an inclusive calendar range: a row per Student, a column per
@@ -68,7 +72,7 @@ export function buildReport(
       absent: absences.filter((a) => a.student === s.id).length,
     }));
 
-  return { columns, rows };
+  return { columns, rows, hasActivity: taps.length > 0 || absences.length > 0 };
 }
 
 function deletedBehavior(id: Id): Behavior {
