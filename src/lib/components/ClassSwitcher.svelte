@@ -44,6 +44,7 @@
     position: relative;
     display: flex;
     align-items: center;
+    gap: 0.35rem;
   }
 
   .title,
@@ -61,6 +62,26 @@
   .title:hover,
   .chevron:hover {
     background: var(--surface-sunk);
+  }
+
+  .title {
+    min-height: 48px;
+    padding: 0.5rem 1rem;
+    border: 1px solid #d9bfa0;
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 6px 16px -10px rgb(90 58 32 / 0.35);
+    cursor: pointer;
+    transition: transform 0.08s;
+  }
+
+  .title:active {
+    transform: scale(0.97);
+  }
+
+  .title:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
   }
 
   h1 {
