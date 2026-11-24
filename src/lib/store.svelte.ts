@@ -5,7 +5,7 @@ import { newId } from "$lib/domain/ids";
 import { defaultMenu } from "$lib/domain/menus";
 import { autoSeat } from "$lib/domain/room";
 import { parseRoster } from "$lib/domain/students";
-import { afterTap, withoutLatest } from "$lib/domain/taps";
+import { afterTap, classAwardTaps, withoutLatest } from "$lib/domain/taps";
 import type {
   Class,
   Data,
@@ -262,6 +262,40 @@ class Store {
       Date.now(),
     );
     this.save();
+  }
+
+  /** Saves one class award and returns an undo for exactly those new taps. */
+  awardClass(clsId: Id, selected: Id[], behaviorId: Id) {
+    const cls = this.findClass(clsId);
+    if (!cls) return null;
+    const behavior = this.findMenu(cls.menuId)?.behaviors.find(
+      (item) => item.id === behaviorId && !item.removed,
+    );
+    if (!behavior) return null;
+
+    const eligible = new Set(
+      cls.students.filter((student) => !student.former).map((student) => student.id),
+    );
+    const added = classAwardTaps(
+      this.data.taps,
+      selected.filter((id) => eligible.has(id)),
+      behavior,
+      Date.now(),
+    );
+    if (!added.length) return null;
+
+    this.data.taps.push(...added);
+    // Capture the stored objects so an older, identical-looking tap is never removed.
+    const award = new Set(this.data.taps.slice(-added.length));
+    this.save();
+
+    return {
+      count: added.length,
+      undo: () => {
+        this.data.taps = this.data.taps.filter((tap) => !award.has(tap));
+        this.save();
+      },
+    };
   }
 
   /** Takes back today's most recent Tap of one Behavior: the −1 button. */
