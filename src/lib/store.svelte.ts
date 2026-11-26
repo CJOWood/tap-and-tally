@@ -61,6 +61,7 @@ class Store {
         gridOrder: "first-asc",
         customOrder: [],
         roomLayoutId: null,
+        roomNameDisplay: "initials",
       },
       seatings: {},
     };

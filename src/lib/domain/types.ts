@@ -13,6 +13,9 @@ export type Student = {
 export type GridOrder =
   "first-asc" | "first-desc" | "last-asc" | "last-desc" | "custom";
 
+export type RoomNameDisplay =
+  "initials" | "initials-first" | "initials-last" | "first-last";
+
 /** How a Class was last shown in Live Mode, so it reopens the same way. Not a setting. */
 export type LastShown = {
   view: "grid" | "room";
@@ -20,6 +23,7 @@ export type LastShown = {
   /** Student ids in the order dragged by hand, used when gridOrder is "custom". */
   customOrder: Id[];
   roomLayoutId: Id | null;
+  roomNameDisplay: RoomNameDisplay;
 };
 
 export type Class = {
