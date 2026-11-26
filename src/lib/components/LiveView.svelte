@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { dayKey } from "$lib/domain/days";
-  import { orderStudents, shortName } from "$lib/domain/students";
+  import { fullName, orderStudents, shortName } from "$lib/domain/students";
   import type { Class, GridOrder, Id, Menu, RoomLayout, Student } from "$lib/domain/types";
   import { hold } from "$lib/hold";
   import { placedStyle, uprightStyle } from "$lib/stage";
@@ -114,7 +114,7 @@
     class="tile-button"
     class:pointed={pointTo && student.id === first?.id}
     use:hold={handlers(student)}
-    aria-label="{shortName(student)}{absentToday.has(student.id) ? ', absent' : ''}"
+    aria-label="{(compact ? fullName(student) : shortName(student)) || 'Student'}{absentToday.has(student.id) ? ', absent' : ''}"
   >
     <StudentTile
       {student}
@@ -122,6 +122,7 @@
       absent={absentToday.has(student.id)}
       flash={flashes[student.id]}
       {compact}
+      roomNameDisplay={cls.lastShown.roomNameDisplay}
       {showTotal}
     />
     {#if pointTo && student.id === first?.id}

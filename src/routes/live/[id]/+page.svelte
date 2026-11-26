@@ -11,7 +11,7 @@
   import GridOrderEditor from "$lib/components/GridOrderEditor.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import LiveView from "$lib/components/LiveView.svelte";
-  import type { GridOrder, Id } from "$lib/domain/types";
+  import type { GridOrder, Id, RoomNameDisplay } from "$lib/domain/types";
   import { store } from "$lib/store.svelte";
   import { liveTracker } from "$lib/tracker.svelte";
   import { ui } from "$lib/ui.svelte";
@@ -137,6 +137,18 @@
 
           <section>
             <h2>Room</h2>
+            <label>
+              Room names
+              <select
+                value={shown.roomNameDisplay}
+                onchange={(e) => store.showClass(cls.id, { roomNameDisplay: e.currentTarget.value as RoomNameDisplay })}
+              >
+                <option value="initials">Initials only</option>
+                <option value="initials-first">Initials + first name</option>
+                <option value="initials-last">Initials + last name</option>
+                <option value="first-last">First name + last name</option>
+              </select>
+            </label>
             {#if layout}
               <label>
                 Room
