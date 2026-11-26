@@ -4,6 +4,7 @@ import {
   moveBefore,
   orderStudents,
   parseRoster,
+  roomNameLines,
   shortName,
 } from "./students";
 import type { Student } from "./types";
@@ -44,6 +45,39 @@ describe("shortName", () => {
       "Maria G.",
     );
     expect(shortName({ firstName: "Cher", lastName: "" })).toBe("Cher");
+  });
+});
+
+describe("roomNameLines", () => {
+  const maria = { firstName: "María", lastName: "de León" };
+
+  it("formats each Room View choice and preserves entered spelling", () => {
+    expect(roomNameLines(maria, "initials")).toEqual({ primary: "ML" });
+    expect(roomNameLines(maria, "initials-first")).toEqual({
+      primary: "ML",
+      secondary: "María",
+    });
+    expect(roomNameLines(maria, "initials-last")).toEqual({
+      primary: "ML",
+      secondary: "de León",
+    });
+    expect(roomNameLines(maria, "first-last")).toEqual({
+      primary: "María",
+      secondary: "de León",
+    });
+  });
+
+  it("omits missing lines and uses the available name in first-last mode", () => {
+    const firstOnly = { firstName: "Cher", lastName: "" };
+    const lastOnly = { firstName: "", lastName: "Ng" };
+    expect(roomNameLines(firstOnly, "initials-last")).toEqual({
+      primary: "CH",
+    });
+    expect(roomNameLines(lastOnly, "initials-first")).toEqual({
+      primary: "NG",
+    });
+    expect(roomNameLines(firstOnly, "first-last")).toEqual({ primary: "Cher" });
+    expect(roomNameLines(lastOnly, "first-last")).toEqual({ primary: "Ng" });
   });
 });
 

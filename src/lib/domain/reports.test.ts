@@ -25,6 +25,7 @@ function setup(): { cls: Class; data: Data } {
     ],
     menuId: "m",
     lastShown: {
+      roomNameDisplay: "initials",
       view: "grid",
       gridOrder: "first-asc",
       customOrder: [],

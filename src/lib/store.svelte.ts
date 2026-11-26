@@ -6,6 +6,7 @@ import { defaultMenu } from "$lib/domain/menus";
 import { autoSeat } from "$lib/domain/room";
 import { parseRoster } from "$lib/domain/students";
 import { afterTap, classAwardTaps, withoutLatest } from "$lib/domain/taps";
+import { DEFAULT_ROOM_NAME_DISPLAY } from "$lib/domain/types";
 import type {
   Class,
   Data,
@@ -61,6 +62,7 @@ class Store {
         gridOrder: "first-asc",
         customOrder: [],
         roomLayoutId: null,
+        roomNameDisplay: DEFAULT_ROOM_NAME_DISPLAY,
       },
       seatings: {},
     };
