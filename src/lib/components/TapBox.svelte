@@ -5,15 +5,17 @@
   a stray tap can't do it. Tap outside or ✕ to close.
 -->
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { activeBehaviors } from "$lib/domain/menus";
   import { fullName } from "$lib/domain/students";
-  import type { Menu, Student, Tap } from "$lib/domain/types";
+  import type { Behavior, Menu, Student, Tap } from "$lib/domain/types";
   import type { Tracker } from "$lib/tracker.svelte";
   import HoldButton from "./HoldButton.svelte";
   import Icon from "./Icon.svelte";
 
   let {
-    student = $bindable(),
+    student = $bindable(null),
+    classAward,
     menu,
     tracker,
     todayTaps,
@@ -21,11 +23,17 @@
     hint = "",
     onclose,
   }: {
-    student: Student | null;
+    student?: Student | null;
+    classAward?: {
+      title: string;
+      disabled: boolean;
+      award: (behavior: Behavior) => void;
+      controls: Snippet;
+    };
     menu: Menu | undefined;
     tracker: Tracker;
     todayTaps: Tap[];
-    onabsent: (student: Student) => void;
+    onabsent?: (student: Student) => void;
     /** A line of guidance under the name, for the practice run. */
     hint?: string;
     onclose?: () => void;
@@ -37,29 +45,36 @@
     todayTaps.filter((t) => t.student === student?.id && t.behavior === behavior).length;
 
   $effect(() => {
-    if (student && !dialog?.open) dialog?.showModal();
-    if (!student && dialog?.open) dialog.close();
+    const open = !!(student || classAward);
+    if (open && !dialog?.open) dialog?.showModal();
+    if (!open && dialog?.open) dialog.close();
   });
+
+  function close() {
+    dialog?.close();
+  }
 
   // A click on the backdrop lands on the dialog itself, outside its content.
   function outside(event: MouseEvent) {
-    if (event.target === dialog) student = null;
+    if (event.target === dialog) close();
   }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 <dialog
   bind:this={dialog}
+  class:class-award={!!classAward}
+  aria-label={classAward ? `Track points for ${classAward.title}` : undefined}
   onclose={() => {
     student = null;
     onclose?.();
   }}
   onclick={outside}
 >
-  {#if student}
+  {#if student || classAward}
     <div class="head">
-      <h2>{fullName(student)}</h2>
-      <button class="btn btn-quiet close" aria-label="Close" onclick={() => (student = null)}><Icon name="close" size={22} /></button>
+      <h2>{classAward?.title ?? (student ? fullName(student) : "")}</h2>
+      <button class="btn btn-quiet close" aria-label="Close" onclick={close}><Icon name="close" size={22} /></button>
     </div>
     {#if hint}<p class="hint" role="note">{hint}</p>{/if}
     <div class="buttons">
@@ -67,29 +82,41 @@
         {@const n = count(behavior.id)}
         {@const toggle = behavior.mode === "toggle"}
         <div class="item" style="--chip: {behavior.color}">
-          <button class="tap" class:on={toggle && n > 0} onclick={() => tracker.tap(student!.id, behavior.id)}>
+          <button
+            class="tap"
+            class:on={toggle && n > 0}
+            disabled={classAward?.disabled}
+            onclick={() => {
+              if (classAward) classAward.award(behavior);
+              else if (student) tracker.tap(student.id, behavior.id);
+            }}
+          >
             <span class="emoji">{behavior.emoji}</span>
             <span class="label">
               {behavior.name}
-              <span class="kind"><Icon name={toggle ? "toggle" : "count"} size={13} />{toggle ? "On or off today" : "Counts every tap"}</span>
+              <span class="kind"><Icon name={toggle ? "toggle" : "count"} size={13} />{toggle ? (classAward ? "Mark on for today" : "On or off today") : "Counts every tap"}</span>
             </span>
-            <span class="n">{toggle ? (n > 0 ? "On" : "Off") : n}</span>
+            {#if !classAward}<span class="n">{toggle ? (n > 0 ? "On" : "Off") : n}</span>{/if}
           </button>
-          {#if !toggle && n > 0}
+          {#if !classAward && !toggle && n > 0}
             <button class="minus" aria-label="Take one {behavior.name} back" onclick={() => tracker.minusOne(student!.id, behavior.id)}>−1</button>
           {/if}
         </div>
       {/each}
     </div>
-    <div class="absent">
-      <HoldButton
-        onhold={() => {
-          const who = student!;
-          student = null;
-          onabsent(who);
-        }}>Hold to mark {student.firstName} absent</HoldButton
-      >
-    </div>
+    {#if classAward}
+      {@render classAward.controls()}
+    {:else if student}
+      <div class="absent">
+        <HoldButton
+          onhold={() => {
+            const who = student!;
+            student = null;
+            onabsent?.(who);
+          }}>Hold to mark {student.firstName} absent</HoldButton
+        >
+      </div>
+    {/if}
   {/if}
 </dialog>
 
@@ -98,6 +125,16 @@
     max-width: min(640px, calc(100vw - 2rem));
     padding: 1.75rem;
     overflow: visible;
+  }
+
+  .class-award {
+    width: 100%;
+    overflow: auto;
+  }
+
+  .tap:disabled {
+    opacity: 0.55;
+    cursor: default;
   }
 
   .head {

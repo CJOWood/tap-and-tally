@@ -1,19 +1,26 @@
-<!-- The class name as a dropdown: pick another class to switch Live Mode to it. -->
+<!-- The title opens class tracking. The chevron switches classes. -->
 <script lang="ts">
   import { goto } from "$app/navigation";
   import type { Class } from "$lib/domain/types";
   import { store } from "$lib/store.svelte";
   import Icon from "./Icon.svelte";
 
-  let { cls }: { cls: Class } = $props();
+  let { cls, ontrack }: { cls: Class; ontrack: () => void } = $props();
   let open = $state(false);
 </script>
 
 <div class="switcher">
-  <button class="title" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
-    <h1>{cls.name}</h1>
-    {#if store.data.classes.length > 1}<Icon name="chevron" size={22} />{/if}
-  </button>
+  <h1>
+    <button class="title" aria-haspopup="dialog" title="Track points for {cls.name}" onclick={() => {
+      open = false;
+      ontrack();
+    }}>{cls.name}</button>
+  </h1>
+  {#if store.data.classes.length > 1}
+    <button class="chevron" aria-label="Switch class" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
+      <Icon name="chevron" size={22} />
+    </button>
+  {/if}
   {#if open && store.data.classes.length > 1}
     <div class="menu" role="menu">
       {#each store.data.classes as other (other.id)}
@@ -35,21 +42,46 @@
 <style>
   .switcher {
     position: relative;
-  }
-
-  .title {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.2rem 0.5rem 0.2rem 0;
+    gap: 0.35rem;
+  }
+
+  .title,
+  .chevron {
+    display: flex;
+    align-items: center;
+    padding: 0.3rem 0.5rem;
+    font: inherit;
     border: 0;
     border-radius: 10px;
     background: none;
     color: var(--text);
   }
 
-  .title:hover {
+  .title:hover,
+  .chevron:hover {
     background: var(--surface-sunk);
+  }
+
+  .title {
+    min-height: 48px;
+    padding: 0.5rem 1rem;
+    border: 1px solid #d9bfa0;
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 6px 16px -10px rgb(90 58 32 / 0.35);
+    cursor: pointer;
+    transition: transform 0.08s;
+  }
+
+  .title:active {
+    transform: scale(0.97);
+  }
+
+  .title:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
   }
 
   h1 {

@@ -1,5 +1,5 @@
 import { dayKey } from "./days";
-import type { Absence, Id, Tap } from "./types";
+import type { Absence, Behavior, Id, Tap } from "./types";
 
 /** How many times a Student got a Behavior on one Day. A toggle is 0 or 1. */
 export function countOn(
@@ -64,4 +64,18 @@ export function afterTap(
     return withoutLatest(taps, student, behavior, today);
   }
   return [...taps, { student, behavior, at: now }];
+}
+
+
+/** A class award turns daily marks on and leaves existing marks in place. */
+export function classAwardTaps(
+  taps: Tap[],
+  students: Id[],
+  behavior: Behavior,
+  now: number,
+): Tap[] {
+  const day = dayKey(now);
+  return [...new Set(students)]
+    .filter((student) => behavior.mode !== "toggle" || countOn(taps, student, behavior.id, day) === 0)
+    .map((student) => ({ student, behavior: behavior.id, at: now }));
 }
