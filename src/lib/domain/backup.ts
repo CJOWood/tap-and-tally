@@ -1,4 +1,10 @@
-import { SEAT_HEIGHT, SEAT_WIDTH, type Class, type Data } from "./types";
+import {
+  DEFAULT_ROOM_NAME_DISPLAY,
+  SEAT_HEIGHT,
+  SEAT_WIDTH,
+  type Class,
+  type Data,
+} from "./types";
 
 export function emptyData(): Data {
   return {
@@ -41,7 +47,7 @@ function upgrade(data: any): Data {
   data.classes = data.classes.map((old: Record<string, unknown>): Class => {
     if (old.lastShown) {
       const cls = old as unknown as Class;
-      cls.lastShown.roomNameDisplay ??= "initials";
+      cls.lastShown.roomNameDisplay ??= DEFAULT_ROOM_NAME_DISPLAY;
       return cls;
     }
     const roomLayoutId = (old.roomLayoutId as string | null) ?? null;
@@ -56,7 +62,7 @@ function upgrade(data: any): Data {
           (old.gridOrder as Class["lastShown"]["gridOrder"]) ?? "first-asc",
         customOrder: (old.customOrder as string[]) ?? [],
         roomLayoutId,
-        roomNameDisplay: "initials",
+        roomNameDisplay: DEFAULT_ROOM_NAME_DISPLAY,
       },
       seatings: roomLayoutId
         ? { [roomLayoutId]: (old.seating as Record<string, string>) ?? {} }

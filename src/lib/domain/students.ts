@@ -16,11 +16,9 @@ export function initials(
   student: Pick<Student, "firstName" | "lastName">,
 ): string {
   const last = student.lastName.split(/\s+/).filter(Boolean).at(-1);
-  const first = [...student.firstName];
-  const letters =
-    first.length && last
-      ? first[0] + [...last][0]
-      : [...(student.firstName || last || "")].slice(0, 2).join("");
+  const letters = last
+    ? [...student.firstName][0] + [...last][0]
+    : [...student.firstName].slice(0, 2).join("");
   return letters.toUpperCase();
 }
 
@@ -30,7 +28,9 @@ export function roomNameLines(
 ): { primary: string; secondary?: string } {
   const firstName = student.firstName.trim();
   const lastName = student.lastName.trim();
-  const letters = initials({ firstName, lastName });
+  const letters = firstName
+    ? initials({ firstName, lastName })
+    : initials({ firstName: lastName, lastName: "" });
 
   switch (display) {
     case "initials-first":

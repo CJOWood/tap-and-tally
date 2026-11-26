@@ -114,7 +114,7 @@
     class="tile-button"
     class:pointed={pointTo && student.id === first?.id}
     use:hold={handlers(student)}
-    aria-label="{(compact ? fullName(student) : shortName(student)) || 'Student'}{absentToday.has(student.id) ? ', absent' : ''}"
+    aria-label="{(showRoom ? fullName(student) : shortName(student)) || 'Student'}{absentToday.has(student.id) ? ', absent' : ''}"
   >
     <StudentTile
       {student}
@@ -122,7 +122,7 @@
       absent={absentToday.has(student.id)}
       flash={flashes[student.id]}
       {compact}
-      roomNameDisplay={cls.lastShown.roomNameDisplay}
+      roomNameDisplay={showRoom ? cls.lastShown.roomNameDisplay : undefined}
       {showTotal}
     />
     {#if pointTo && student.id === first?.id}

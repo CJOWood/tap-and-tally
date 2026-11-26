@@ -16,6 +16,8 @@ export type GridOrder =
 export type RoomNameDisplay =
   "initials" | "initials-first" | "initials-last" | "first-last";
 
+export const DEFAULT_ROOM_NAME_DISPLAY: RoomNameDisplay = "initials";
+
 /** How a Class was last shown in Live Mode, so it reopens the same way. Not a setting. */
 export type LastShown = {
   view: "grid" | "room";

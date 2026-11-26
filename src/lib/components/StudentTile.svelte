@@ -14,7 +14,7 @@
     total,
     absent = false,
     compact = false,
-    roomNameDisplay = "initials",
+    roomNameDisplay,
     flash = "",
     showTotal = true,
   }: {
@@ -28,16 +28,16 @@
     showTotal?: boolean;
   } = $props();
 
-  const roomName = $derived(roomNameLines(student, roomNameDisplay));
+  const roomName = $derived(roomNameDisplay && roomNameLines(student, roomNameDisplay));
 </script>
 
 <span class="tile" class:faded={total === 0} class:absent class:compact>
   <span class="fill" aria-hidden="true"></span>
   {#if absent}<span class="cross" aria-hidden="true"></span>{/if}
-  {#if compact}
-    <span class="letters room-name" use:fitName={roomName.primary}><span>{roomName.primary}</span></span>
+  {#if roomName}
+    <span class="letters room-name"><span use:fitName={roomName.primary}>{roomName.primary}</span></span>
     {#if roomName.secondary}
-      <span class="name room-name" use:fitName={roomName.secondary}><span>{roomName.secondary}</span></span>
+      <span class="name room-name"><span use:fitName={roomName.secondary}>{roomName.secondary}</span></span>
     {/if}
   {:else}
     <span class="letters">{initials(student)}</span>
@@ -75,6 +75,9 @@
      so two desks pushed together share one line instead of showing two. */
   .compact {
     grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(0, max-content);
+    padding: min(0.4rem, 4%);
+    gap: min(0.15rem, 2%);
     min-height: 0;
     border: 0;
     border-radius: 0;
@@ -109,12 +112,15 @@
 
   .room-name {
     overflow: hidden;
+    line-height: 1;
     white-space: nowrap;
     text-overflow: clip;
   }
 
   .room-name > span {
-    display: inline-block;
+    display: block;
+    width: max-content;
+    margin-inline: auto;
     font-size: inherit;
   }
 

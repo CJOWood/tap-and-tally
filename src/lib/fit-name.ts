@@ -1,10 +1,11 @@
 import { tick } from "svelte";
 
 /** Fit one line to its slot without changing the size of the tile. */
-export function fitName(line: HTMLElement, text: string) {
-  const label = line.firstElementChild as HTMLElement;
+export function fitName(label: HTMLElement, text: string) {
+  const line = label.parentElement;
+  if (!line) return;
 
-  function fit() {
+  const fit = () => {
     label.style.fontSize = "";
     if (line.clientWidth === 0 || label.offsetWidth <= line.clientWidth) return;
 
@@ -22,7 +23,7 @@ export function fitName(line: HTMLElement, text: string) {
       else largest = size;
     }
     label.style.fontSize = `${smallest}px`;
-  }
+  };
 
   let previousWidth = -1;
   const observer = new ResizeObserver(() => {
