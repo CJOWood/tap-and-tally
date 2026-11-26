@@ -4,8 +4,9 @@
   action); `flash` shows a moment of confirmation, and absent students get an X.
 -->
 <script lang="ts">
-  import { initials, shortName } from "$lib/domain/students";
-  import type { Student } from "$lib/domain/types";
+  import { initials, roomNameLines, shortName } from "$lib/domain/students";
+  import type { RoomNameDisplay, Student } from "$lib/domain/types";
+  import { fitName } from "$lib/fit-name";
   import TotalBadge from "./TotalBadge.svelte";
 
   let {
@@ -13,6 +14,7 @@
     total,
     absent = false,
     compact = false,
+    roomNameDisplay,
     flash = "",
     showTotal = true,
   }: {
@@ -20,17 +22,27 @@
     total?: number;
     absent?: boolean;
     compact?: boolean;
+    roomNameDisplay?: RoomNameDisplay;
     flash?: string;
     /** Off when the bubble is drawn in a layer above every desk instead. */
     showTotal?: boolean;
   } = $props();
+
+  const roomName = $derived(roomNameDisplay && roomNameLines(student, roomNameDisplay));
 </script>
 
 <span class="tile" class:faded={total === 0} class:absent class:compact>
   <span class="fill" aria-hidden="true"></span>
   {#if absent}<span class="cross" aria-hidden="true"></span>{/if}
-  <span class="letters">{initials(student)}</span>
-  <span class="name">{absent ? "Absent" : shortName(student)}</span>
+  {#if roomName}
+    <span class="letters room-name"><span use:fitName={roomName.primary}>{roomName.primary}</span></span>
+    {#if roomName.secondary}
+      <span class="name room-name"><span use:fitName={roomName.secondary}>{roomName.secondary}</span></span>
+    {/if}
+  {:else}
+    <span class="letters">{initials(student)}</span>
+    <span class="name">{absent ? "Absent" : shortName(student)}</span>
+  {/if}
   {#if showTotal && total !== undefined && total > 0 && !absent}
     <TotalBadge {total} />
   {/if}
@@ -62,6 +74,10 @@
   /* On a desk: square, like the furniture. The edge is drawn centred on the desk's edge,
      so two desks pushed together share one line instead of showing two. */
   .compact {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(0, max-content);
+    padding: min(0.4rem, 4%);
+    gap: min(0.15rem, 2%);
     min-height: 0;
     border: 0;
     border-radius: 0;
@@ -94,9 +110,18 @@
     text-overflow: ellipsis;
   }
 
-  /* A desk is too small for a name; the initials carry it. */
-  .compact .name {
-    display: none;
+  .room-name {
+    overflow: hidden;
+    line-height: 1;
+    white-space: nowrap;
+    text-overflow: clip;
+  }
+
+  .room-name > span {
+    display: block;
+    width: max-content;
+    margin-inline: auto;
+    font-size: inherit;
   }
 
   /* Nobody has tapped them yet today. */

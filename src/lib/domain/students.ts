@@ -1,4 +1,4 @@
-import type { GridOrder, Id, Student } from "./types";
+import type { GridOrder, Id, RoomNameDisplay, Student } from "./types";
 
 /** One student per line: the first word is the first name, the rest the last name. */
 export function parseRoster(
@@ -20,6 +20,31 @@ export function initials(
     ? [...student.firstName][0] + [...last][0]
     : [...student.firstName].slice(0, 2).join("");
   return letters.toUpperCase();
+}
+
+export function roomNameLines(
+  student: Pick<Student, "firstName" | "lastName">,
+  display: RoomNameDisplay,
+): { primary: string; secondary?: string } {
+  const firstName = student.firstName.trim();
+  const lastName = student.lastName.trim();
+  const letters = firstName
+    ? initials({ firstName, lastName })
+    : initials({ firstName: lastName, lastName: "" });
+
+  switch (display) {
+    case "initials-first":
+      return { primary: letters, secondary: firstName || undefined };
+    case "initials-last":
+      return { primary: letters, secondary: lastName || undefined };
+    case "first-last":
+      return {
+        primary: firstName || lastName,
+        secondary: firstName && lastName ? lastName : undefined,
+      };
+    default:
+      return { primary: letters };
+  }
 }
 
 /** "Maria G." — small enough for a tile. */
